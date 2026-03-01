@@ -307,138 +307,900 @@ function useState<T>(initial: T): [T, (newValue: T) => void] {
 
 ---
 
-## Section 6: Generics
+# Section 6: Generics
 
-### Exercise 6.1 — Generic Functions
+Generics let you write functions, interfaces, and classes that work with **any type** while still being fully type-safe. Think of them as "type variables" — instead of hardcoding `string` or `number`, you write `T` and let TypeScript fill it in at the call site.
 
-```ts
-// 1. Write a generic function first<T>(arr: T[]): T | undefined
-//    that returns the first element of any array
-
-// 2. Write a generic function last<T>(arr: T[]): T | undefined
-
-// 3. Write a generic function filterNull<T>(arr: (T | null | undefined)[]): T[]
-//    that removes null/undefined from an array
-
-// 4. Write a generic function groupBy<T, K extends string | number>(
-//    items: T[], getKey: (item: T) => K): Record<K, T[]>
-//    that groups array items by a key function
-
-// Example usage of groupBy:
-// groupBy([{age: 20, name: "Alice"}, {age: 30, name: "Bob"}, {age: 20, name: "Charlie"}], u => u.age)
-// Should return: { 20: [{...Alice}, {...Charlie}], 30: [{...Bob}] }
-```
-
----
-
-### Exercise 6.2 — Generic Interfaces
-
-```ts
-// 1. Create a generic interface Pair<A, B> with properties first and second
-//    Write a function swap<A, B>(pair: Pair<A, B>): Pair<B, A>
-
-// 2. Create a generic interface Repository<T> with methods:
-//    - findById(id: number): Promise<T | null>
-//    - findAll(): Promise<T[]>
-//    - create(data: Omit<T, "id">): Promise<T>
-//    - update(id: number, data: Partial<T>): Promise<T | null>
-//    - delete(id: number): Promise<boolean>
-
-// 3. Create a generic interface Result<T, E = Error> representing success or failure:
-//    - ok: boolean
-//    - data?: T
-//    - error?: E
-//    Write a helper function success<T>(data: T): Result<T>
-//    and failure<E>(error: E): Result<never, E>
-```
-
----
-
-### Exercise 6.3 — Generic Constraints
-
-```ts
-// 1. Write a function merge<T extends object, U extends object>(a: T, b: U): T & U
-//    that merges two objects
-
-// 2. Write a function getProperty<T, K extends keyof T>(obj: T, key: K): T[K]
-//    A fully type-safe property accessor
-
-// 3. Write a function clamp<T extends number | bigint>(value: T, min: T, max: T): T
-//    that clamps a value between min and max
-
-// 4. Write a function sortBy<T>(items: T[], key: keyof T): T[]
-//    that sorts an array of objects by any key
-```
-
----
-
-## Section 7: Classes
-
-### Exercise 7.1 — Build a Class
-
-Build a `Stack<T>` class:
-
-```ts
-class Stack<T> {
-  // Requirements:
-  // - private items array
-  // - push(item: T): void
-  // - pop(): T — should throw an error if stack is empty
-  // - peek(): T — should throw if empty
-  // - get size(): number — a getter
-  // - get isEmpty(): boolean — a getter
-  // - clear(): void
-  // - toArray(): T[] — returns a copy (not the original array)
+```typescript
+// Without generics — only works for strings
+function identity(value: string): string {
+  return value;
 }
 
-// Test your Stack:
-const stack = new Stack<number>();
-stack.push(1);
-stack.push(2);
-stack.push(3);
-console.log(stack.peek()); // 3
-console.log(stack.pop());  // 3
-console.log(stack.size);   // 2
+// With generics — works for any type, and TypeScript tracks which type you used
+function identity<T>(value: T): T {
+  return value;
+}
+
+const s = identity("hello"); // TypeScript knows: s is string
+const n = identity(42);      // TypeScript knows: n is number
+const b = identity(true);    // TypeScript knows: b is boolean
 ```
 
 ---
 
-### Exercise 7.2 — Abstract Classes
+## Exercise 6.0 — Warm-Up: Read and Predict
 
-Create a simple shape hierarchy:
+Before writing any generics yourself, read these examples and answer the questions in comments.
 
-```ts
-// Abstract base class Shape:
-//   - abstract method area(): number
-//   - abstract method perimeter(): number
-//   - concrete method describe(): string that uses area() and perimeter()
-//   - abstract property name: string
+```typescript
+// Example 1
+function wrap<T>(value: T): T[] {
+  return [value];
+}
 
-// Implement these concrete classes:
-// - Rectangle (width, height)
-// - Circle (radius)
-// - Triangle (a, b, c — three side lengths; area via Heron's formula)
+const a = wrap("hello");
+const b = wrap(123);
+const c = wrap({ name: "Alice" });
 
-// Write a function printShapeInfo(shape: Shape): void
-// Write a function largestShape(shapes: Shape[]): Shape
+// Q: What is the type of `a`?  →
+// Q: What is the type of `b`?  →
+// Q: What is the type of `c`?  →
+
+
+// Example 2
+function pair<A, B>(first: A, second: B): [A, B] {
+  return [first, second];
+}
+
+const p1 = pair("age", 30);
+const p2 = pair(true, ["x", "y"]);
+
+// Q: What is the type of `p1`?  →
+// Q: What is the type of `p2`?  →
+
+
+// Example 3 — TypeScript infers the type argument from usage
+function echo<T>(value: T, times: number): T[] {
+  return Array(times).fill(value);
+}
+
+const words = echo("hey", 3);  // string[]
+const nums  = echo(0, 5);      // number[]
+
+// Q: Can you call echo() without providing <T> explicitly? Why or why not?  →
 ```
 
 ---
 
-### Exercise 7.3 — Interfaces & Classes
+## Exercise 6.1 — Your First Generic Functions
 
-```ts
-// 1. Define an interface Comparable<T> with method compareTo(other: T): -1 | 0 | 1
-// 2. Define an interface Printable with method toString(): string
-// 3. Create a class Temperature that:
-//    - Has a private celsius value
-//    - Implements Comparable<Temperature>
-//    - Implements Printable (returns "X°C / Y°F")
-//    - Has static factory methods: fromCelsius(c) and fromFahrenheit(f)
-//    - Has getters for celsius and fahrenheit
+Start simple: write these one at a time and test each in your editor.
+
+```typescript
+// 1a. Write a generic function `first` that returns the first element of any array,
+//     or undefined if the array is empty.
+//
+// Example usage:
+//   first([1, 2, 3])          // → 1       (type: number)
+//   first(["a", "b"])         // → "a"     (type: string)
+//   first([])                 // → undefined
+function first<T>(arr: T[]): T | undefined {
+  // your code here
+}
+
+
+// 1b. Write a generic function `last` — same idea but returns the last element.
+//
+// Example usage:
+//   last([10, 20, 30])        // → 30
+//   last(["only"])            // → "only"
+//   last([])                  // → undefined
+function last<T>(arr: T[]): T | undefined {
+  // your code here
+}
+
+
+// 1c. Write a generic function `repeat` that takes a value and a count,
+//     and returns an array with that value repeated count times.
+//
+// Example usage:
+//   repeat("ha", 3)           // → ["ha", "ha", "ha"]
+//   repeat(0, 4)              // → [0, 0, 0, 0]
+//   repeat(true, 2)           // → [true, true]
+function repeat<T>(value: T, count: number): T[] {
+  // your code here
+}
+
+
+// 1d. Write a generic function `compact` that removes null and undefined
+//     from an array. The return type should NOT include null or undefined.
+//
+// Example usage:
+//   compact([1, null, 2, undefined, 3])  // → [1, 2, 3]   (type: number[])
+//   compact(["a", null, "b"])            // → ["a", "b"]  (type: string[])
+function compact<T>(arr: (T | null | undefined)[]): T[] {
+  // your code here
+}
 ```
 
 ---
+
+## Exercise 6.2 — Multiple Type Parameters
+
+Some generic functions need more than one type variable.
+
+```typescript
+// Here's an example with two type parameters:
+function zipWith<A, B, C>(
+  arr1: A[],
+  arr2: B[],
+  fn: (a: A, b: B) => C
+): C[] {
+  return arr1.map((item, i) => fn(item, arr2[i]));
+}
+
+// Usage:
+zipWith([1, 2, 3], [10, 20, 30], (a, b) => a + b);
+// → [11, 22, 33]
+
+zipWith(["a", "b"], [1, 2], (letter, num) => `${letter}${num}`);
+// → ["a1", "b2"]
+
+
+// Now try these:
+
+// 2a. Write a function `mapObject` that takes an object and a transform function,
+//     and returns a new object with all values transformed.
+//
+// Example usage:
+//   mapObject({ a: 1, b: 2, c: 3 }, n => n * 2)
+//   // → { a: 2, b: 4, c: 6 }
+//
+//   mapObject({ name: "Alice", city: "NYC" }, s => s.toUpperCase())
+//   // → { name: "ALICE", city: "NYC" }
+function mapObject<K extends string, V, R>(
+  obj: Record<K, V>,
+  fn: (value: V, key: K) => R
+): Record<K, R> {
+  // your code here
+}
+
+
+// 2b. Write a function `partition` that takes an array and a predicate,
+//     and returns two arrays: [itemsThatPass, itemsThatFail].
+//
+// Example usage:
+//   partition([1, 2, 3, 4, 5], n => n % 2 === 0)
+//   // → [[2, 4], [1, 3, 5]]
+//
+//   partition(["hello", "hi", "world"], s => s.length > 3)
+//   // → [["hello", "world"], ["hi"]]
+function partition<T>(arr: T[], predicate: (item: T) => boolean): [T[], T[]] {
+  // your code here
+}
+
+
+// 2c. Write `groupBy` — takes an array and a key function,
+//     returns an object grouping items by the key.
+//
+// Example usage:
+//   const people = [
+//     { name: "Alice", age: 20 },
+//     { name: "Bob",   age: 30 },
+//     { name: "Carol", age: 20 },
+//   ];
+//   groupBy(people, p => p.age)
+//   // → { 20: [{name:"Alice",...}, {name:"Carol",...}], 30: [{name:"Bob",...}] }
+function groupBy<T, K extends string | number>(
+  items: T[],
+  getKey: (item: T) => K
+): Partial<Record<K, T[]>> {
+  // your code here
+}
+```
+
+---
+
+## Exercise 6.3 — Generic Interfaces
+
+Generics aren't just for functions — interfaces and types can be generic too.
+
+```typescript
+// Example: a generic Box that holds any value
+interface Box<T> {
+  value: T;
+  label: string;
+}
+
+const numberBox: Box<number> = { value: 42,      label: "My number" };
+const stringBox: Box<string> = { value: "hello", label: "My string" };
+
+
+// 3a. Create a generic interface `Pair<A, B>` with properties `first` and `second`.
+//     Then write a function `swap` that takes a Pair and returns a new Pair
+//     with the values switched.
+//
+// Example usage:
+//   const p: Pair<string, number> = { first: "age", second: 30 };
+//   swap(p)  // → { first: 30, second: "age" }  (type: Pair<number, string>)
+interface Pair<A, B> {
+  // your code here
+}
+
+function swap<A, B>(pair: Pair<A, B>): Pair<B, A> {
+  // your code here
+}
+
+
+// 3b. Create a generic interface `Result<T, E = Error>` that represents
+//     either a success (with data) or a failure (with an error).
+//     Then write helper functions `success` and `failure`.
+//
+// Example usage:
+//   const ok  = success(42);           // Result<number>
+//   const err = failure(new Error("oops")); // Result<never, Error>
+//
+//   if (ok.ok) {
+//     console.log(ok.data);   // ✅ TypeScript knows data exists
+//   } else {
+//     console.log(ok.error);  // ✅ TypeScript knows error exists
+//   }
+type Result<T, E = Error> =
+  | { ok: true;  data: T }
+  | { ok: false; error: E };
+
+function success<T>(data: T): Result<T> {
+  // your code here
+}
+
+function failure<E = Error>(error: E): Result<never, E> {
+  // your code here
+}
+
+
+// 3c. Create a generic interface `Repository<T>` — a standard pattern for
+//     database access. All methods are async.
+//
+// Hint: The "id" field on T is always a number.
+// You'll need to use Omit<T, "id"> for create() so callers don't pass the id.
+interface Repository<T extends { id: number }> {
+  findById(id: number): Promise<T | null>;
+  findAll(): Promise<T[]>;
+  create(data: Omit<T, "id">): Promise<T>;
+  update(id: number, data: Partial<T>): Promise<T | null>;
+  delete(id: number): Promise<boolean>;
+}
+
+// Now show how you'd use this — create an interface `UserRecord` and
+// declare (don't implement) a `UserRepository` that implements Repository<UserRecord>:
+interface UserRecord {
+  id: number;
+  name: string;
+  email: string;
+}
+
+// declare const userRepo: Repository<UserRecord>;
+// userRepo.findById(1)                   // → Promise<UserRecord | null>
+// userRepo.create({ name: "Alice", email: "a@b.com" })  // → Promise<UserRecord>
+```
+
+---
+
+## Exercise 6.4 — Generic Constraints
+
+Sometimes you want to accept "any type, as long as it has certain properties." Use `extends` to add constraints.
+
+```typescript
+// Without a constraint — T could be anything, so this errors:
+// function getLength<T>(value: T): number {
+//   return value.length; // ❌ T might not have .length
+// }
+
+// With a constraint — we guarantee T has a .length property:
+function getLength<T extends { length: number }>(value: T): number {
+  return value.length; // ✅
+}
+
+getLength("hello");        // ✅ strings have .length
+getLength([1, 2, 3]);      // ✅ arrays have .length
+getLength({ length: 10 }); // ✅
+// getLength(42);           // ❌ numbers don't have .length
+
+
+// 4a. Write a function `merge` that takes two objects and combines them.
+//     The return type should be the intersection of both input types.
+//
+// Example usage:
+//   merge({ name: "Alice" }, { age: 30 })
+//   // → { name: "Alice", age: 30 }  (type: { name: string } & { age: number })
+function merge<T extends object, U extends object>(a: T, b: U): T & U {
+  // your code here
+}
+
+
+// 4b. Write a fully type-safe property accessor `getProperty`.
+//     The key must actually exist on the object — TypeScript enforces this.
+//
+// Example usage:
+//   const user = { id: 1, name: "Alice", age: 30 };
+//   getProperty(user, "name")   // → "Alice"  (type: string)
+//   getProperty(user, "id")     // → 1        (type: number)
+//   getProperty(user, "email")  // ❌ TypeScript error — "email" doesn't exist
+function getProperty<T, K extends keyof T>(obj: T, key: K): T[K] {
+  // your code here
+}
+
+
+// 4c. Write a function `clamp` that constrains a number between min and max.
+//     It should work for both number and bigint.
+//
+// Example usage:
+//   clamp(15, 0, 10)   // → 10
+//   clamp(-5, 0, 10)   // → 0
+//   clamp(7,  0, 10)   // → 7
+function clamp<T extends number | bigint>(value: T, min: T, max: T): T {
+  // your code here
+}
+
+
+// 4d. Write a function `sortBy` that sorts an array of objects by any key.
+//     The key's value must be comparable (string or number).
+//
+// Example usage:
+//   const people = [{ name: "Charlie" }, { name: "Alice" }, { name: "Bob" }];
+//   sortBy(people, "name")
+//   // → [{ name: "Alice" }, { name: "Bob" }, { name: "Charlie" }]
+function sortBy<T extends Record<string, string | number>>(
+  items: T[],
+  key: keyof T
+): T[] {
+  // your code here
+}
+```
+
+---
+
+## Exercise 6.5 — Challenge: Chaining Generics
+
+These combine everything from this section. Take your time.
+
+```typescript
+// 5a. Write a generic `pipe` function that takes a value and a list of
+//     single-argument transform functions, applying them left to right.
+//     For simplicity, restrict this to a 3-function pipe.
+//
+// Example usage:
+//   pipe(
+//     "  hello world  ",
+//     (s: string) => s.trim(),
+//     (s: string) => s.split(" "),
+//     (arr: string[]) => arr.length
+//   )
+//   // → 2  (type: number)
+function pipe<A, B, C, D>(
+  value: A,
+  fn1: (a: A) => B,
+  fn2: (b: B) => C,
+  fn3: (c: C) => D
+): D {
+  // your code here
+}
+
+
+// 5b. Write a generic `memoize` function that wraps any single-argument
+//     function and caches its results.
+//
+// Example usage:
+//   const expensiveDouble = memoize((n: number) => {
+//     console.log("computing...");
+//     return n * 2;
+//   });
+//
+//   expensiveDouble(5);  // logs "computing...", returns 10
+//   expensiveDouble(5);  // returns 10 (from cache, no log)
+//   expensiveDouble(3);  // logs "computing...", returns 6
+function memoize<Arg, Return>(
+  fn: (arg: Arg) => Return
+): (arg: Arg) => Return {
+  // your code here
+}
+```
+
+---
+---
+
+# Section 7: Classes
+
+TypeScript adds access modifiers, generics, abstract classes, and interface implementation on top of JavaScript's class syntax. Classes are also a key place where the **type** of an object and its **runtime behavior** are defined together.
+
+```typescript
+// A quick refresher on what TypeScript adds to classes:
+class Counter {
+  private count: number = 0;   // only accessible inside this class
+  readonly id: string;          // can be set in constructor, never again
+
+  constructor(id: string) {
+    this.id = id;
+  }
+
+  increment(): void {
+    this.count++;
+  }
+
+  get value(): number {       // getter — accessed as a property, not a method
+    return this.count;
+  }
+}
+
+const c = new Counter("counter-1");
+c.increment();
+console.log(c.value);  // 1
+// c.count = 10;       // ❌ private
+// c.id = "new-id";    // ❌ readonly
+```
+
+---
+
+## Exercise 7.0 — Warm-Up: Reading Classes
+
+Read these classes and answer the questions.
+
+```typescript
+class BankAccount {
+  private balance: number;
+  readonly owner: string;
+  private static totalAccounts: number = 0;
+
+  constructor(owner: string, initialBalance: number = 0) {
+    this.owner = owner;
+    this.balance = initialBalance;
+    BankAccount.totalAccounts++;
+  }
+
+  deposit(amount: number): void {
+    if (amount <= 0) throw new Error("Amount must be positive");
+    this.balance += amount;
+  }
+
+  withdraw(amount: number): boolean {
+    if (amount > this.balance) return false;
+    this.balance -= amount;
+    return true;
+  }
+
+  get currentBalance(): number {
+    return this.balance;
+  }
+
+  static getAccountCount(): number {
+    return BankAccount.totalAccounts;
+  }
+}
+
+const acc = new BankAccount("Alice", 100);
+acc.deposit(50);
+
+// Q: What does acc.currentBalance return?  →
+// Q: Can you write `acc.balance = 500` outside the class?  →
+// Q: How would you call getAccountCount()?  →
+// Q: What happens if you call acc.withdraw(200)?  →
+// Q: Can you write `acc.owner = "Bob"`?  →
+```
+
+---
+
+## Exercise 7.1 — Build It Step by Step: Stack<T>
+
+A `Stack` is a last-in, first-out (LIFO) data structure. Build it in stages.
+
+```typescript
+// Stage 1: Core structure — just make it compile with the right shape.
+// Don't worry about error handling yet.
+class Stack<T> {
+  private items: T[] = [];
+
+  push(item: T): void {
+    // Add item to top of stack
+  }
+
+  pop(): T | undefined {
+    // Remove and return the top item (or undefined if empty)
+  }
+
+  peek(): T | undefined {
+    // Return (but don't remove) the top item
+  }
+
+  get size(): number {
+    // Return the number of items
+  }
+
+  get isEmpty(): boolean {
+    // Return true if no items
+  }
+}
+
+// Test Stage 1:
+const s1 = new Stack<number>();
+s1.push(1);
+s1.push(2);
+console.log(s1.peek());   // 2
+console.log(s1.size);     // 2
+console.log(s1.isEmpty);  // false
+
+
+// Stage 2: Add error handling.
+// pop() and peek() should throw a descriptive error (not return undefined) when empty.
+class Stack<T> {
+  private items: T[] = [];
+
+  push(item: T): void { /* your code */ }
+
+  pop(): T {
+    if (this.isEmpty) throw new Error("Stack is empty — cannot pop");
+    // your code
+  }
+
+  peek(): T {
+    if (this.isEmpty) throw new Error("Stack is empty — cannot peek");
+    // your code
+  }
+
+  get size(): number { /* your code */ }
+  get isEmpty(): boolean { /* your code */ }
+
+
+  // Stage 2 additions:
+
+  clear(): void {
+    // Remove all items
+  }
+
+  toArray(): T[] {
+    // Return a COPY of items (not a reference to the internal array)
+    // Hint: why does returning a copy matter?
+  }
+}
+
+// Test Stage 2:
+const s2 = new Stack<string>();
+s2.push("a");
+s2.push("b");
+s2.push("c");
+
+const arr = s2.toArray();
+arr.push("d");             // modifying the copy
+console.log(s2.size);      // still 3 — the original is unchanged ✅
+
+s2.clear();
+console.log(s2.isEmpty);   // true
+
+try {
+  s2.pop();                // throws
+} catch (e) {
+  console.log(e.message);  // "Stack is empty — cannot pop"
+}
+
+
+// Stage 3: Add a static factory method and a `contains` method.
+class Stack<T> {
+  // ...everything from Stage 2...
+
+  contains(item: T): boolean {
+    // Return true if the item is in the stack
+  }
+
+  // Static factory: creates a Stack pre-loaded from an array
+  // Example: Stack.from([1, 2, 3]) → Stack with 3 as the top item
+  static from<T>(items: T[]): Stack<T> {
+    // your code
+  }
+}
+
+// Test Stage 3:
+const s3 = Stack.from([10, 20, 30]);
+console.log(s3.size);          // 3
+console.log(s3.peek());        // 30
+console.log(s3.contains(20));  // true
+console.log(s3.contains(99));  // false
+```
+
+---
+
+## Exercise 7.2 — Abstract Classes: Shape Hierarchy
+
+Abstract classes define a contract that subclasses must fulfill. You can't instantiate them directly — they're blueprints.
+
+```typescript
+// Here's the pattern explained:
+abstract class Animal {
+  abstract makeSound(): string;   // subclasses MUST implement this
+  abstract readonly name: string; // subclasses MUST define this
+
+  // Concrete method — shared by all subclasses
+  describe(): string {
+    return `${this.name} says "${this.makeSound()}"`;
+  }
+}
+
+// new Animal();           // ❌ can't instantiate abstract class
+class Dog extends Animal {
+  readonly name = "Dog";
+  makeSound() { return "Woof"; }
+}
+// new Dog().describe();   // ✅ "Dog says 'Woof'"
+
+
+// Now build a shape hierarchy:
+
+// Step 1: Define the abstract base class
+abstract class Shape {
+  abstract get name(): string;
+  abstract area(): number;
+  abstract perimeter(): number;
+
+  // Implement this concrete method — it should use area() and perimeter()
+  // and return a formatted string like:
+  // "Circle — Area: 78.54, Perimeter: 31.42"
+  describe(): string {
+    // your code here
+  }
+}
+
+
+// Step 2: Implement concrete shapes
+
+class Rectangle extends Shape {
+  constructor(
+    private width: number,
+    private height: number
+  ) {
+    super();
+  }
+
+  get name(): string { return "Rectangle"; }
+
+  area(): number {
+    // width × height
+  }
+
+  perimeter(): number {
+    // 2 × (width + height)
+  }
+}
+
+
+class Circle extends Shape {
+  constructor(private radius: number) {
+    super();
+  }
+
+  get name(): string { return "Circle"; }
+
+  area(): number {
+    // π × r²
+  }
+
+  perimeter(): number {
+    // 2 × π × r
+  }
+}
+
+
+class Triangle extends Shape {
+  // Takes three side lengths: a, b, c
+  constructor(
+    private a: number,
+    private b: number,
+    private c: number
+  ) {
+    super();
+  }
+
+  get name(): string { return "Triangle"; }
+
+  perimeter(): number {
+    // a + b + c
+  }
+
+  area(): number {
+    // Heron's formula:
+    // s = (a + b + c) / 2
+    // area = √(s × (s-a) × (s-b) × (s-c))
+  }
+}
+
+
+// Step 3: Write utility functions that accept any Shape
+
+// Logs the result of shape.describe()
+function printShapeInfo(shape: Shape): void {
+  // your code here
+}
+
+// Returns the shape with the largest area
+function largestShape(shapes: Shape[]): Shape {
+  // your code here
+}
+
+// Test:
+const shapes: Shape[] = [
+  new Rectangle(4, 6),
+  new Circle(5),
+  new Triangle(3, 4, 5),
+];
+
+shapes.forEach(printShapeInfo);
+// Rectangle — Area: 24.00, Perimeter: 20.00
+// Circle    — Area: 78.54, Perimeter: 31.42
+// Triangle  — Area: 6.00,  Perimeter: 12.00
+
+console.log(largestShape(shapes).name);  // "Circle"
+```
+
+---
+
+## Exercise 7.3 — Interfaces & Classes
+
+A class can implement one or more interfaces. This is useful for defining contracts across unrelated class hierarchies.
+
+```typescript
+// Example: two totally different classes sharing an interface
+interface Describable {
+  describe(): string;
+}
+
+class Car implements Describable {
+  constructor(private make: string, private model: string) {}
+  describe() { return `${this.make} ${this.model}`; }
+}
+
+class Person implements Describable {
+  constructor(private name: string) {}
+  describe() { return `Person: ${this.name}`; }
+}
+
+// A function that works with ANYTHING that is Describable
+function printAll(items: Describable[]): void {
+  items.forEach(item => console.log(item.describe()));
+}
+
+printAll([new Car("Toyota", "Camry"), new Person("Alice")]);
+
+
+// Now build a Temperature class that implements two interfaces:
+
+// 3a. Define these interfaces:
+interface Comparable<T> {
+  // Returns -1 if this < other, 0 if equal, 1 if this > other
+  compareTo(other: T): -1 | 0 | 1;
+}
+
+interface Printable {
+  // Human-readable string representation
+  toString(): string;
+}
+
+
+// 3b. Build the Temperature class:
+class Temperature implements Comparable<Temperature>, Printable {
+  // Store temperature internally in Celsius (private)
+  private readonly _celsius: number;
+
+  private constructor(celsius: number) {
+    this._celsius = celsius;
+  }
+
+  // Static factory methods — callers use these instead of `new`
+  static fromCelsius(c: number): Temperature {
+    // your code here
+  }
+
+  static fromFahrenheit(f: number): Temperature {
+    // Hint: celsius = (f - 32) × 5/9
+  }
+
+  // Getters
+  get celsius(): number {
+    return this._celsius;
+  }
+
+  get fahrenheit(): number {
+    // celsius × 9/5 + 32
+  }
+
+  // Returns a string like "100°C / 212°F"
+  toString(): string {
+    // your code here
+  }
+
+  compareTo(other: Temperature): -1 | 0 | 1 {
+    // your code here
+  }
+}
+
+
+// Test:
+const boiling  = Temperature.fromCelsius(100);
+const freezing = Temperature.fromFahrenheit(32);
+const body     = Temperature.fromCelsius(37);
+
+console.log(boiling.toString());           // "100°C / 212°F"
+console.log(freezing.celsius);             // 0
+console.log(body.compareTo(boiling));      // -1
+console.log(boiling.compareTo(boiling));   // 0
+
+// Sort an array of temperatures using compareTo
+const temps = [boiling, freezing, body];
+temps.sort((a, b) => a.compareTo(b));
+temps.forEach(t => console.log(t.toString()));
+// 0°C / 32°F
+// 37°C / 98.6°F
+// 100°C / 212°F
+```
+
+---
+
+## Exercise 7.4 — Challenge: Generic Class with Constraints
+
+Combine classes, generics, and interfaces into one cohesive challenge.
+
+```typescript
+// Build a `SortedList<T>` class — a list that always stays sorted.
+// Elements must be Comparable (using the interface from 7.3).
+
+class SortedList<T extends Comparable<T>> {
+  private items: T[] = [];
+
+  // Insert an item in the correct position to maintain sort order
+  insert(item: T): void {
+    // Hint: find the first index where item.compareTo(items[i]) <= 0
+    // and splice it in. Or push and re-sort — either works.
+  }
+
+  // Remove an item by value. Return true if removed, false if not found.
+  remove(item: T): boolean {
+    // your code here
+  }
+
+  // Return items as a sorted array (a copy)
+  toArray(): T[] {
+    return [...this.items];
+  }
+
+  get size(): number {
+    return this.items.length;
+  }
+
+  // Return the smallest item
+  min(): T | undefined {
+    return this.items[0];
+  }
+
+  // Return the largest item
+  max(): T | undefined {
+    return this.items[this.items.length - 1];
+  }
+}
+
+
+// Test with Temperature (which implements Comparable<Temperature>):
+const tempList = new SortedList<Temperature>();
+tempList.insert(Temperature.fromCelsius(100));
+tempList.insert(Temperature.fromCelsius(0));
+tempList.insert(Temperature.fromCelsius(37));
+tempList.insert(Temperature.fromCelsius(-10));
+
+tempList.toArray().forEach(t => console.log(t.toString()));
+// -10°C / 14°F
+// 0°C / 32°F
+// 37°C / 98.6°F
+// 100°C / 212°F
+
+console.log(tempList.min()?.toString());   // "-10°C / 14°F"
+console.log(tempList.max()?.toString());   // "100°C / 212°F"
+```
 
 ## Section 8: Type Narrowing
 
